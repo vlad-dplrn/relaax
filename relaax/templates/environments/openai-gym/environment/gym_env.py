@@ -76,11 +76,7 @@ class GymEnv(object):
         self._shape = (shape[0], shape[1])
         self._channels = 0 if len(shape) == 2 else shape[-1]
 
-        if options.get('environment/crop', True):
-            self._crop = True
-            self._top = int(round(9 * (shape[0] / 42)))
-            self._bottom = int(round(shape[0] - 4 * (shape[0] / 42)))
-
+        self._crop = options.get('environment/crop', True)
         self._process_state = SetFunction(self._process_all)
 
         atari = [name + 'Deterministic' for name in GymEnv.AtariGameList] + GymEnv.AtariGameList
@@ -113,7 +109,16 @@ class GymEnv(object):
             state = None
         else:
             state = self._process_state(state)
-
+        if False:
+            self.cnt += 1
+            self.states.append(state)
+            if self.cnt == 20:
+                for i in range(self.cnt):
+                    string = "logs/img" + str(i)
+                    Image.fromarray(np.asarray(
+                        self.states[i][:, :, 0] * 255, dtype=np.uint8)).save(string, "PNG")
+                self.cnt = 0
+                self.states = []
         return reward, state, terminal
 
     def reset(self):
@@ -129,7 +134,9 @@ class GymEnv(object):
             if not terminal:
                 state = self._process_state(state)
                 break
-
+        if False:
+            self.cnt = 1
+            self.states = [state]
         return state
 
     def _process_img(self, screen):
@@ -137,7 +144,11 @@ class GymEnv(object):
             screen = np.dot(screen[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
 
         if self._crop:
-            screen = screen[self._top:self._bottom, ...]
+            screen = screen[34:34 + 160, :160]
+
+        if self._shape[0] < 80:
+            screen = np.array(Image.fromarray(screen).resize(
+                (80, 80), resample=Image.BILINEAR), dtype=np.uint8)
 
         screen = np.array(Image.fromarray(screen).resize(
             self._shape, resample=Image.BILINEAR), dtype=np.uint8)
