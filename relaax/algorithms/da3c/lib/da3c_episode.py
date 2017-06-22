@@ -3,6 +3,7 @@ from builtins import range
 from builtins import object
 import numpy as np
 import scipy.signal
+from PIL import Image
 
 from relaax.server.common import session
 from relaax.common.algorithms.lib import episode
@@ -55,6 +56,13 @@ class DA3CEpisode(object):
 
     def end(self):
         experience = self.episode.end()
+        if False:
+            states = experience['state']
+            for i in range(len(states)):
+                for j in range(da3c_config.config.input.history):
+                    string = "logs/img" + str(i) + str(j)
+                    Image.fromarray(np.asarray(
+                        states[i][:, :, j] * 255, dtype=np.uint8)).save(string, "PNG")
         if not self.exploit:
             self.apply_gradients(self.compute_gradients(experience), len(experience))
             if da3c_config.config.use_icm:
