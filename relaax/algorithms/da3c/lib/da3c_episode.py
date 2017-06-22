@@ -12,6 +12,7 @@ from relaax.common.algorithms.lib import utils
 from .. import da3c_config
 from .. import da3c_model
 from . import da3c_observation
+DEBUG = False
 
 
 class DA3CEpisode(object):
@@ -56,7 +57,7 @@ class DA3CEpisode(object):
 
     def end(self):
         experience = self.episode.end()
-        if False:
+        if DEBUG:
             states = experience['state']
             for i in range(len(states)):
                 for j in range(da3c_config.config.input.history):
