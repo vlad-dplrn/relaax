@@ -118,6 +118,7 @@ class DA3CEpisode(object):
             probabilities, = action
             return utils.choose_action_descrete(probabilities), value
         mu, sigma2 = action
+        print('mu', mu)
         # da3c_config.config.output.action_high
         # da3c_config.config.output.action_low
         return utils.choose_action_continuous(mu, sigma2), value
