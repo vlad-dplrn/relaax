@@ -139,7 +139,8 @@ class GenericLayers(subgraph.Subgraph):
 
 
 class DescreteActor(subgraph.Subgraph):
-    def build_graph(self, head, action_size):
+    def build_graph(self, head, output):
+        action_size = output.action_size
         actor = Dense(head, action_size, activation=Activation.Softmax)
         self.weight = actor.weight
         self.action_size = action_size
@@ -148,18 +149,19 @@ class DescreteActor(subgraph.Subgraph):
 
 
 class ContinuousActor(subgraph.Subgraph):
-    def build_graph(self, head, action_size):
+    def build_graph(self, head, output):
+        action_size = output.action_size
         self.mu = Dense(head, action_size)
         self.sigma2 = Dense(head, action_size, activation=Activation.Softplus)
         self.weight = graph.Variables(self.mu.weight, self.sigma2.weight)
         self.action_size = action_size
         self.continuous = True
-        return self.mu.node, self.sigma2.node
+        return self.mu.node * graph.TfNode(output.scale).node, self.sigma2.node
 
 
 def Actor(head, output):
     Actor = ContinuousActor if output.continuous else DescreteActor
-    return Actor(head, output.action_size)
+    return Actor(head, output)
 
 
 class Input(subgraph.Subgraph):
@@ -167,11 +169,20 @@ class Input(subgraph.Subgraph):
         input_shape = input.shape
         if np.prod(input.shape) == 0:
             input_shape = [1]
-
-        shape = [None] + input_shape
-        if input.history > 1:
-            shape += [input.history]
+        shape = [None] + input_shape + [input.history]
         self.ph_state = graph.Placeholder(np.float32, shape=shape)
+
+        if not input.use_convolutions or len(shape) <= 4:
+            state_input = self.ph_state
+        else:
+            # move channels after history
+            perm = list(range(len(shape)))
+            perm = perm[0:3] + perm[-1:] + perm[3:-1]
+            transpose = tf.transpose(self.ph_state.node, perm=perm)
+
+            # mix history and channels in one dimension
+            state_input = graph.TfNode(tf.reshape(transpose,
+                [-1] + shape[1:3] + [np.prod(shape[3:])]))
 
         if input.use_convolutions and descs is None:
             # applying vanilla A3C convolution layers
@@ -181,8 +192,8 @@ class Input(subgraph.Subgraph):
                 dict(type=Convolution, n_filters=32, filter_size=[4, 4],
                      stride=[2, 2], activation=Activation.Relu)]
 
-        descs = [] if descs is None else descs
-        layers = GenericLayers(self.ph_state, descs)
+        descs = [] if not input.use_convolutions else descs
+        layers = GenericLayers(state_input, descs)
 
         self.weight = layers.weight
         return layers.node
