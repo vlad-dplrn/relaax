@@ -164,6 +164,7 @@ class DA3CEpisode(object):
         if da3c_config.config.use_gae:
             feeds.update(dict(advantage=advantage))
 
+        print('loss', self.session.op_compute_loss(**feeds))
         return self.session.op_compute_gradients(**feeds)
 
     def compute_icm_gradients(self, experience):

@@ -132,6 +132,7 @@ class AgentModel(subgraph.Subgraph):
                                                     state=sg_network.ph_state)
 
         self.op_compute_gradients = self.Op(sg_gradients.calculate, **feeds)
+        self.op_compute_loss = self.Op(sg_loss, **feeds)
 
 
 if __name__ == '__main__':
