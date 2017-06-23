@@ -25,21 +25,22 @@ class Network(subgraph.Subgraph):
         if da3c_config.config.use_lstm:
             lstm = layer.LSTM(graph.Expand(dense, 0), size=sizes[-1])
             head = graph.Reshape(lstm, [-1, sizes[-1]])
+        layers = [input, dense]
 
         actor = layer.Actor(head, da3c_config.config.output)
         critic = layer.Dense(head, 1)
 
         self.ph_state = input.ph_state
         if da3c_config.config.use_lstm:
+            layers.append(lstm)
             self.ph_lstm_state = lstm.ph_state
             self.ph_lstm_step = lstm.ph_step
             self.lstm_zero_state = lstm.zero_state
             self.lstm_state = lstm.state
         self.actor = actor
         self.critic = graph.Flatten(critic)
-        layers = [input, dense, actor, critic]
-        if da3c_config.config.use_lstm:
-            layers.append(lstm)
+
+        layers.extend((actor, critic))
         self.weights = layer.Weights(*layers)
 
 
