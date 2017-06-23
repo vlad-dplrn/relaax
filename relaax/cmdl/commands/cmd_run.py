@@ -1,12 +1,44 @@
 from builtins import object
 import os
 import sys
+import time
 import click
 from honcho.manager import Manager
+import subprocess
+import honcho.process
+from honcho.compat import ON_WINDOWS
+from honcho.compat import iteritems
+import honcho.manager
 
 from relaax.common.python.config.config_yaml import ConfigYaml
 from relaax.cmdl.cmdl import pass_context
 
+class PopenPatched(subprocess.Popen):
+
+    def __init__(self, cmd, **kwargs):
+        start_new_session = kwargs.pop('start_new_session', True)
+        options = {
+            'stdout': subprocess.PIPE,
+            'stderr': subprocess.STDOUT,
+            'shell': True,
+            'bufsize': 1,
+            'close_fds': not ON_WINDOWS,
+        }
+        options.update(**kwargs)
+
+        if ON_WINDOWS:
+            # MSDN reference:
+            #   http://msdn.microsoft.com/en-us/library/windows/desktop/ms684863%28v=vs.85%29.aspx
+            create_new_process_group = 0x00000200
+            detached_process = 0x00000008
+            #options.update(creationflags=detached_process | create_new_process_group)
+        elif start_new_session:
+            if sys.version_info < (3, 2):
+                options.update(preexec_fn=os.setsid)
+            else:
+                options.update(start_new_session=True)
+
+        super(PopenPatched, self).__init__(cmd, **options)
 
 class RManager(Manager):
 
@@ -22,8 +54,32 @@ class RManager(Manager):
             return all(clients)
         else:
             super(RManager, self)._any_stopped()
+            
+    def _killall(self, force=False):
+        """Kill all remaining processes, forcefully if requested."""
+        for_termination = []
 
+        for n, p in iteritems(self._processes):
+            if 'returncode' not in p:
+                for_termination.append(n)
 
+        for n in for_termination:
+            p = self._processes[n]
+            signame = 'SIGKILL' if force else 'SIGTERM'
+            self._system_print("sending %s to %s (pid %s)\n" %
+                               (signame, n, p['pid']))
+            if sys.platform == 'win32':
+                import ctypes
+                ctypes.windll.kernel32.SetConsoleCtrlHandler(0, True);
+                ctypes.windll.kernel32.GenerateConsoleCtrlEvent(0, 0)
+                time.sleep(0.1)
+                ctypes.windll.kernel32.SetConsoleCtrlHandler(0, False);
+            else:                   
+                if force:
+                    self._env.kill(p['pid'])
+                else:
+                    self._env.terminate(p['pid'])
+         
 class CmdlRun(object):
 
     def __init__(self, ctx, components, config, n_clients, exploit, show_ui):
@@ -35,7 +91,7 @@ class CmdlRun(object):
         self.components = components if bool(components) else set(['all'])
 
         if sys.platform == 'win32':
-            self.nobuffer = ''
+            self.nobuffer = 'set PYTHONUNBUFFERED=true&&'
         else:
             self.nobuffer = 'PYTHONUNBUFFERED=true'
         self.config_yaml = ConfigYaml()
@@ -146,5 +202,25 @@ def cmdl(ctx, components, config, n_environments, exploit, show_ui):
     ctx.setup_logger(format='%(asctime)s %(name)s\t\t  | %(message)s')
     # Disable TF warnings
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-    # Exacute command
-    CmdlRun(ctx, set(components), config.name, n_environments, exploit, show_ui).run_componenets()
+    # Execute command
+    if sys.platform == 'win32':
+        honcho.manager.KILL_WAIT = 120
+        honcho.process.Popen = PopenPatched
+    
+        import _winapi, ctypes
+        
+        firstRun = False 
+        mutex = ctypes.windll.kernel32.CreateMutexA(None, False, "RELAAX_WINDOWS_MUTEX")
+        if _winapi.GetLastError() == 0:
+            firstRun = True
+            
+        if firstRun:
+            os.system("start " + ' '.join(sys.argv))
+            time.sleep(2)
+            _winapi.CloseHandle(mutex)
+        else:
+            _winapi.CloseHandle(mutex)    
+            honcho.process.Popen = PopenPatched
+            CmdlRun(ctx, set(components), config.name, n_environments, exploit, show_ui).run_componenets()
+    else:    
+        CmdlRun(ctx, set(components), config.name, n_environments, exploit, show_ui).run_componenets()
