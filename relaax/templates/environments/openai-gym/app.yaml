@@ -1,9 +1,10 @@
 ---
 
 environment:
-  run: python environment/training.py
-  name: CartPole-v0
-  max_episodes: 1000
+  run: python3 environment/training.py
+  name: BipedalWalker-v2
+  shape: [24]
+  max_episodes: 10000
   infinite_run: False
 
 relaax-parameter-server:
@@ -20,26 +21,26 @@ algorithm:
   name: da3c
 
   input:
-    shape: [4]
-    history: 1
+    shape: [24]
+    history: 4
     use_convolutions: false
 
   output:
-    continuous: false
-    action_size: 2                # action size for the given environment
+    continuous: true
+    action_size: 4                # action size for the given environment
 
   batch_size: 5                   # local loop size for one episode
 
   use_lstm: false                 # to use LSTM instead of FF, set to the True
-  max_global_step: 1e8            # amount of maximum global steps to pass through the training
+  max_global_step: 4e7            # amount of maximum global steps to pass through the training
 
   entropy_beta: 0.01              # entropy regularization constant
   rewards_gamma: 0.99             # rewards discount factor
   use_gae: fslae                  # switcher for generalized advantage estimation
   gae_lambda: 1.00                # lambda for generalized advantage estimation
 
-  initial_learning_rate: 1e-2
-  optimizer: RMSProp
+  initial_learning_rate: 1e-3
+  optimizer: Adam
 
   RMSProp:
     decay: 0.99
