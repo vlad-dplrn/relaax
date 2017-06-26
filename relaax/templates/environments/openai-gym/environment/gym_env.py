@@ -20,7 +20,7 @@ from relaax.environment.config import options
 
 gym.configuration.undo_logger_setup()
 log = logging.getLogger(__name__)
-DEBUG = True
+DEBUG = False
 
 
 class SetFunction(object):
@@ -110,7 +110,7 @@ class GymEnv(object):
             state = None
         else:
             state = self._process_state(state)
-        if DEBUG:
+        if DEBUG and state is not None:
             self.cnt += 1
             self.states.append(state)
             if self.cnt == 20:
