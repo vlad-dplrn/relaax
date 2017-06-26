@@ -71,8 +71,8 @@ class DA3CContinuousLoss(subgraph.Subgraph):
         sigma2 += tf.constant(1e-6)
 
         log_std_dev = tf.log(sigma2)
-        entropy = tf.reduce_mean(log_std_dev + tf.constant(0.5 * np.log(2. * np.pi * np.e), tf.float32), axis=0)
-        # entropy = 0.5 * (tf.log(2. * np.pi * sigma2) + 1.)
+        # entropy = tf.reduce_mean(log_std_dev + tf.constant(0.5 * np.log(2. * np.pi * np.e), tf.float32), axis=0)
+        entropy = 0.5 * (tf.log(2. * np.pi * sigma2) + 1.)
 
         l2_dist = tf.square(self.ph_action.node - mu)
         sqr_std_dev = tf.constant(2.) * tf.square(sigma2) + tf.constant(1e-6)
