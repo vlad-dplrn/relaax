@@ -101,7 +101,10 @@ class LSTM(subgraph.Subgraph):
         self.ph_state = graph.TfNode(tuple(graph.Placeholder(np.float32, [batch_size, size]).node
                                            for _ in range(2)))
 
-        self.zero_state = tuple(np.zeros([batch_size, size]) for _ in range(2))
+        self.zero_state = graph.TfNode(
+            tf.contrib.rnn.LSTMStateTuple(
+            *tuple(np.zeros([batch_size, size]) for _ in range(2))
+        )).node
 
         state = tf.contrib.rnn.LSTMStateTuple(*self.ph_state.node)
 

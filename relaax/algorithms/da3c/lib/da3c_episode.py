@@ -118,7 +118,7 @@ class DA3CEpisode(object):
             probabilities, = action
             return utils.choose_action_descrete(probabilities), value
         mu, sigma2 = action
-        print('mu', mu)
+        # print('mu', mu)
         # da3c_config.config.output.action_high
         # da3c_config.config.output.action_low
         return utils.choose_action_continuous(mu, sigma2,
@@ -164,7 +164,7 @@ class DA3CEpisode(object):
         if da3c_config.config.use_gae:
             feeds.update(dict(advantage=advantage))
 
-        print('loss', self.session.op_compute_loss(**feeds))
+        # print('loss', self.session.op_compute_loss(**feeds))
         return self.session.op_compute_gradients(**feeds)
 
     def compute_icm_gradients(self, experience):
