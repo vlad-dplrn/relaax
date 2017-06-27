@@ -11,10 +11,10 @@ class DA3CDescreteLoss(subgraph.Subgraph):
         self.ph_value = graph.Placeholder(np.float32, shape=(None,))
         self.ph_discounted_reward = graph.Placeholder(np.float32, shape=(None,))
 
-        diff = self.ph_discounted_reward.node - self.ph_value.node
+        td = self.ph_discounted_reward.node - self.ph_value.node
         if gae:
             self.ph_advantage = graph.Placeholder(np.float32, shape=(None,))
-            diff = self.ph_advantage.node
+            td = self.ph_advantage.node
 
         action_one_hot = tf.one_hot(self.ph_action.node, actor.action_size)
 
@@ -27,7 +27,7 @@ class DA3CDescreteLoss(subgraph.Subgraph):
         # policy loss (output)  (Adding minus, because the original paper's
         # objective function is for gradient ascent, but we use gradient descent optimizer)
         policy_loss = -tf.reduce_sum(tf.reduce_sum(log_pi * action_one_hot, axis=1) *
-                                     diff + entropy * entropy_beta)
+                                     td + entropy * entropy_beta)
 
         # value loss (output)
         # (Learning rate for Critic is half of Actor's, it's l2 without dividing by 0.5)
@@ -96,6 +96,7 @@ class DA3CContinuousLoss(subgraph.Subgraph):
         mu, sigma2 = actor.node
         sigma2 += tf.constant(1e-6)
         td = self.ph_discounted_reward.node - self.ph_value.node
+        diff = self.ph_discounted_reward.node - critic.node
 
         log_pi = tf.log(sigma2, 1e-20)
 
@@ -111,18 +112,16 @@ class DA3CContinuousLoss(subgraph.Subgraph):
                         + b_size * tf.log(2. * np.pi)) / 2. - tf.reduce_sum(x_power, axis=1)
 
         policy_loss = -tf.reduce_sum(
-            tf.multiply(gaussian_nll,
-                        tf.stop_gradient(self.ph_discounted_reward.node - self.ph_value.node))
-            + entropy_beta * entropy
+            tf.multiply(gaussian_nll, tf.stop_gradient(td)) + entropy_beta * entropy
         )
 
         # value loss (output)
         # (Learning rate for Critic is half of Actor's, it's l2 without dividing by 0.5)
-        value_loss = tf.reduce_sum(tf.square(td))
+        value_loss = tf.reduce_sum(tf.square(diff))
 
         # gradient of policy and value are summed up
         return policy_loss + value_loss,\
-            [sigma2, td, log_pi, entropy, b_size, x_prec, x_diff, x_power,
+            [sigma2, td, diff, log_pi, entropy, b_size, x_prec, x_diff, x_power,
              gaussian_nll, policy_loss, value_loss]
 
 
