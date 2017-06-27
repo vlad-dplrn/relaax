@@ -108,7 +108,10 @@ class DA3CEpisode(object):
     def get_action_and_value_from_network(self):
         if da3c_config.config.use_lstm:
             action, value, self.lstm_state = self.session.op_get_action_value_and_lstm_state(
-                state=[self.observation.queue], lstm_state=self.lstm_state, lstm_step=[1])
+                state=[self.observation.queue],
+                lstm_state0=self.lstm_state[0],
+                lstm_state1=self.lstm_state[1],
+                lstm_step=[1])
         else:
             action, value = self.session.op_get_action_and_value(
                 state=[self.observation.queue])
@@ -160,7 +163,9 @@ class DA3CEpisode(object):
                      value=experience['value'], discounted_reward=self.discounted_reward)
 
         if da3c_config.config.use_lstm:
-            feeds.update(dict(lstm_state=self.initial_lstm_state, lstm_step=[len(reward)]))
+            feeds.update(dict(lstm_state0=self.initial_lstm_state[0],
+                              lstm_state1=self.initial_lstm_state[1],
+                              lstm_step=[len(reward)]))
         if da3c_config.config.use_gae:
             feeds.update(dict(advantage=advantage))
 
