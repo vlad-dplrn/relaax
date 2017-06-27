@@ -98,7 +98,7 @@ class DA3CContinuousLoss(subgraph.Subgraph):
         td = self.ph_discounted_reward.node - self.ph_value.node
         diff = self.ph_discounted_reward.node - critic.node
 
-        log_pi = tf.log(sigma2, 1e-20)
+        log_pi = tf.log(sigma2)
 
         # policy entropy
         entropy = -tf.reduce_sum(0.5 * (tf.log(2. * np.pi * sigma2) + 1.), axis=1)

@@ -109,6 +109,7 @@ class DA3CEpisode(object):
             probabilities, = action
             return utils.choose_action_descrete(probabilities), value
         mu, sigma2 = action
+        print('mu', mu)
         return utils.choose_action_continuous(mu, sigma2,
                                               da3c_config.config.output.action_low,
                                               da3c_config.config.output.action_high), value
@@ -151,6 +152,20 @@ class DA3CEpisode(object):
             feeds.update(dict(lstm_state=self.initial_lstm_state, lstm_step=[len(reward)]))
         if da3c_config.config.use_gae:
             feeds.update(dict(advantage=advantage))
+
+        loss_values = self.session.loss_ops(**feeds)
+        print('sigma2', loss_values[0])
+        print('td', loss_values[1])
+        print('diff', loss_values[2])
+        print('log_pi', loss_values[3])
+        print('entropy', loss_values[4])
+        print('b_size', loss_values[5])
+        print('x_prec', loss_values[6])
+        print('x_diff', loss_values[7])
+        print('x_power', loss_values[8])
+        print('gaussian_nll', loss_values[9])
+        print('policy_loss', loss_values[10])
+        print('value_loss', loss_values[11])
 
         return self.session.op_compute_gradients(**feeds)
 
