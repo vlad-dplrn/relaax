@@ -89,9 +89,10 @@ class AgentModel(subgraph.Subgraph):
         # Build graph
         sg_network = Network()
 
-        sg_loss, list_op = loss.DA3CLoss(sg_network.actor, sg_network.critic,
-                                         da3c_config.config.entropy_beta,
-                                         da3c_config.config.use_gae)
+        sg_loss = loss.DA3CLoss(sg_network.actor, sg_network.critic,
+                                da3c_config.config.entropy_beta,
+                                da3c_config.config.use_gae)
+
         sg_gradients = layer.Gradients(sg_network.weights, loss=sg_loss,
                                        norm=da3c_config.config.gradients_norm_clipping)
 
@@ -133,7 +134,7 @@ class AgentModel(subgraph.Subgraph):
 
         self.op_compute_gradients = self.Op(sg_gradients.calculate, **feeds)
         # 12 ops relevant to loss
-        self.loss_ops = self.Ops(list_op, **feeds)
+        self.loss_ops = self.Ops(*sg_loss.loss_values, **feeds)
 
 
 if __name__ == '__main__':

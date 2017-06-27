@@ -119,10 +119,10 @@ class DA3CContinuousLoss(subgraph.Subgraph):
         # (Learning rate for Critic is half of Actor's, it's l2 without dividing by 0.5)
         value_loss = tf.reduce_sum(tf.square(diff))
 
+        self.loss_values = [graph.TfNode(t) for t in [sigma2, td, diff, log_pi, entropy, b_size, x_prec, x_diff, x_power,
+                                                      gaussian_nll, policy_loss, value_loss]]
         # gradient of policy and value are summed up
-        return policy_loss + value_loss,\
-            [sigma2, td, diff, log_pi, entropy, b_size, x_prec, x_diff, x_power,
-             gaussian_nll, policy_loss, value_loss]
+        return policy_loss + value_loss
 
 
 def DA3CLoss(actor, critic, entropy_beta, gae=False):
