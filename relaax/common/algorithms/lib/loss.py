@@ -60,7 +60,7 @@ class SimpleContinuousLoss(subgraph.Subgraph):
         return policy_loss + value_loss
 
 
-class DA3CContinuousLoss(subgraph.Subgraph):
+class DA3CNewContinuousLoss(subgraph.Subgraph):
     def build_graph(self, actor, critic, entropy_beta, gae):
         self.ph_action = graph.Placeholder(np.float32, shape=(None, actor.action_size))
         self.ph_value = graph.Placeholder(np.float32, shape=(None,))
@@ -87,15 +87,17 @@ class DA3CContinuousLoss(subgraph.Subgraph):
         return policy_loss + value_loss
 
 
-class DA3COldContinuousLoss(subgraph.Subgraph):
+class DA3CContinuousLoss(subgraph.Subgraph):
     def build_graph(self, actor, critic, entropy_beta, gae):
         self.ph_action = graph.Placeholder(np.float32, shape=(None, actor.action_size))
         self.ph_value = graph.Placeholder(np.float32, shape=(None,))
         self.ph_discounted_reward = graph.Placeholder(np.float32, shape=(None,))
 
         mu, sigma2 = actor.node
+        sigma2 += tf.constant(1e-6)
+        td = self.ph_discounted_reward.node - self.ph_value.node
 
-        log_pi = tf.log(tf.maximum(sigma2, 1e-20))
+        log_pi = tf.log(sigma2, 1e-20)
 
         # policy entropy
         entropy = -tf.reduce_sum(0.5 * (tf.log(2. * np.pi * sigma2) + 1.), axis=1)
@@ -116,10 +118,12 @@ class DA3COldContinuousLoss(subgraph.Subgraph):
 
         # value loss (output)
         # (Learning rate for Critic is half of Actor's, it's l2 without dividing by 0.5)
-        value_loss = tf.reduce_sum(tf.square(self.ph_discounted_reward.node - critic.node))
+        value_loss = tf.reduce_sum(tf.square(td))
 
         # gradient of policy and value are summed up
-        return policy_loss + value_loss
+        return policy_loss + value_loss,\
+            [sigma2, td, log_pi, entropy, b_size, x_prec, x_diff, x_power,
+             gaussian_nll, policy_loss, value_loss]
 
 
 def DA3CLoss(actor, critic, entropy_beta, gae=False):
