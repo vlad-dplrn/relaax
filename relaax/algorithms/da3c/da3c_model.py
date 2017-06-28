@@ -24,6 +24,8 @@ class Network(subgraph.Subgraph):
                                     [dict(type=layer.Dense, size=size,
                                           activation=layer.Activation.Relu) for size in sizes])
         head = dense
+        layers = [input, dense]
+
         if da3c_config.config.use_lstm:
             lstm_step_size = tf.placeholder(tf.float32, [1], name='lstm_step_size')
             ph_lstm_state0 = tf.placeholder(tf.float32, [1, sizes[-1]], name='lstm_state0')
@@ -50,25 +52,23 @@ class Network(subgraph.Subgraph):
                     graph.TfNode(tf.get_variable('basic_lstm_cell/weights')),
                     graph.TfNode(tf.get_variable('basic_lstm_cell/biases')))
 
+            layers.append(layer.WeightLayer(lstm_weights))  # layers.append(lstm)
             head = graph.Reshape(graph.TfNode(lstm_outputs), [-1, sizes[-1]])
 
-        actor = layer.Actor(head, da3c_config.config.output)
-        critic = layer.Dense(head, 1)
-
-        self.ph_state = input.ph_state
-        if da3c_config.config.use_lstm:
             # self.ph_lstm_state = graph.TfNode(lstm_initial_state)  # lstm.ph_state
             self.ph_lstm_state0 = graph.TfNode(ph_lstm_state0)
             self.ph_lstm_state1 = graph.TfNode(ph_lstm_state1)
             self.ph_lstm_step = graph.TfNode(lstm_step_size)  # lstm.ph_step
             self.lstm_zero_state = lstm_zero_state  # lstm.zero_state
             self.lstm_state = graph.TfNode(lstm_state)  # lstm.state
+
+        actor = layer.Actor(head, da3c_config.config.output)
+        critic = layer.Dense(head, 1)
+        layers.extend((actor, critic))
+
+        self.ph_state = input.ph_state
         self.actor = actor
         self.critic = graph.Flatten(critic)
-
-        layers = [input, dense, actor, critic]
-        if da3c_config.config.use_lstm:
-            layers.append(layer.WeightLayer(lstm_weights))  # layers.append(lstm)
         self.weights = layer.Weights(*layers)
 
 
