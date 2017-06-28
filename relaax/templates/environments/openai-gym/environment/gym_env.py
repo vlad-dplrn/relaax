@@ -142,7 +142,7 @@ class GymEnv(object):
 
     def _process_img(self, screen):
         if self._channels < 2:
-            screen = np.dot(screen[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
+            screen = screen.mean(2)
 
         if self._crop:
             screen = screen[32:36 + 160, :160]
