@@ -107,11 +107,18 @@ class DA3CEpisode(object):
 
     def get_action_and_value_from_network(self):
         if da3c_config.config.use_lstm:
-            action, value, self.lstm_state = self.session.op_get_action_value_and_lstm_state(
-                state=[self.observation.queue],
-                lstm_state0=self.lstm_state[0],
-                lstm_state1=self.lstm_state[1],
-                lstm_step=[1])
+            if self.episode.experience is not None and (len(self.episode.experience) == da3c_config.config.batch_size or self.terminal):
+                action, value, _ = self.session.op_get_action_value_and_lstm_state(
+                    state=[self.observation.queue],
+                    lstm_state0=self.lstm_state[0],
+                    lstm_state1=self.lstm_state[1],
+                    lstm_step=[1])
+            else:
+                action, value, self.lstm_state = self.session.op_get_action_value_and_lstm_state(
+                    state=[self.observation.queue],
+                    lstm_state0=self.lstm_state[0],
+                    lstm_state1=self.lstm_state[1],
+                    lstm_step=[1])
         else:
             action, value = self.session.op_get_action_and_value(
                 state=[self.observation.queue])
