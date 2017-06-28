@@ -50,6 +50,7 @@ class DA3CEpisode(object):
         assert (state is None) == terminal
         self.observation.add_state(state)
 
+        self.terminal = terminal
         assert self.last_action is None
         assert self.last_value is None
 
