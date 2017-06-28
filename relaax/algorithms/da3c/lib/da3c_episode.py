@@ -11,6 +11,7 @@ from relaax.common.algorithms.lib import utils
 from .. import da3c_config
 from .. import da3c_model
 from . import da3c_observation
+DEBUG = False
 
 
 class DA3CEpisode(object):
@@ -153,19 +154,20 @@ class DA3CEpisode(object):
         if da3c_config.config.use_gae:
             feeds.update(dict(advantage=advantage))
 
-        loss_values = self.session.loss_ops(**feeds)
-        print('sigma2', loss_values[0])
-        print('td', loss_values[1])
-        print('diff', loss_values[2])
-        print('log_pi', loss_values[3])
-        print('entropy', loss_values[4])
-        print('b_size', loss_values[5])
-        print('x_prec', loss_values[6])
-        print('x_diff', loss_values[7])
-        print('x_power', loss_values[8])
-        print('gaussian_nll', loss_values[9])
-        print('policy_loss', loss_values[10])
-        print('value_loss', loss_values[11])
+        if DEBUG:
+            loss_values = self.session.loss_ops(**feeds)
+            print('sigma2', loss_values[0])
+            print('td', loss_values[1])
+            print('diff', loss_values[2])
+            print('log_pi', loss_values[3])
+            print('entropy', loss_values[4])
+            print('b_size', loss_values[5])
+            print('x_prec', loss_values[6])
+            print('x_diff', loss_values[7])
+            print('x_power', loss_values[8])
+            print('gaussian_nll', loss_values[9])
+            print('policy_loss', loss_values[10])
+            print('value_loss', loss_values[11])
 
         return self.session.op_compute_gradients(**feeds)
 
