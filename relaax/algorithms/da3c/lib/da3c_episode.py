@@ -12,6 +12,7 @@ from .. import da3c_config
 from .. import da3c_model
 from . import da3c_observation
 DEBUG = False
+PRINT_ACTION = False
 
 
 class DA3CEpisode(object):
@@ -110,7 +111,8 @@ class DA3CEpisode(object):
             probabilities, = action
             return utils.choose_action_descrete(probabilities), value
         mu, sigma2 = action
-        print('mu', mu)
+        if PRINT_ACTION:
+            print('mu', mu)
         return utils.choose_action_continuous(mu, sigma2,
                                               da3c_config.config.output.action_low,
                                               da3c_config.config.output.action_high), value
