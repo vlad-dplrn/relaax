@@ -12,7 +12,7 @@ from .. import da3c_config
 from .. import da3c_model
 from . import da3c_observation
 DEBUG = False
-PRINT_ACTION = False
+PRINT_ACTION = True
 
 
 class DA3CEpisode(object):
