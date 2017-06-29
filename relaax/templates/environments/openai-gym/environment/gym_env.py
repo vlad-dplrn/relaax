@@ -20,6 +20,7 @@ from relaax.environment.config import options
 
 gym.configuration.undo_logger_setup()
 log = logging.getLogger(__name__)
+DEBUG = False
 
 
 class SetFunction(object):
@@ -109,7 +110,16 @@ class GymEnv(object):
             state = None
         else:
             state = self._process_state(state)
-
+        if DEBUG and state is not None:
+            self.cnt += 1
+            self.states.append(state)
+            if self.cnt == 20:
+                for i in range(self.cnt):
+                    string = "logs/img" + str(i)
+                    Image.fromarray(np.asarray(
+                        self.states[i][:, :, 0] * 255, dtype=np.uint8)).save(string, "PNG")
+                self.cnt = 0
+                self.states = []
         return reward, state, terminal
 
     def reset(self):
@@ -125,19 +135,21 @@ class GymEnv(object):
             if not terminal:
                 state = self._process_state(state)
                 break
-
+        if DEBUG:
+            self.cnt = 1
+            self.states = [state]
         return state
 
     def _process_img(self, screen):
         if self._channels < 2:
-            screen = np.dot(screen[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
+            screen = screen.mean(2)
 
         if self._crop:
-            screen = screen[34:34 + 160, :160]
+            screen = screen[32:36 + 160, :160]
 
-        if self._shape[0] < 80:
+        if self._shape[0] < 84:
             screen = np.array(Image.fromarray(screen).resize(
-                (80, 80), resample=Image.BILINEAR), dtype=np.uint8)
+                (84, 84), resample=Image.BILINEAR), dtype=np.uint8)
 
         screen = np.array(Image.fromarray(screen).resize(
             self._shape, resample=Image.BILINEAR), dtype=np.uint8)

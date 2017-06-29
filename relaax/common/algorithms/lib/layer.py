@@ -120,6 +120,11 @@ class LSTM(subgraph.Subgraph):
         return outputs
 
 
+class WeightLayer(subgraph.Subgraph):
+    def build_graph(self, x):
+        self.weight = x
+
+
 class Flatten(subgraph.Subgraph):
     def build_graph(self, x):
         return graph.Reshape(x, (-1, np.prod(x.node.shape.as_list()[1:]))).node

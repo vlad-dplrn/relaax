@@ -3,7 +3,7 @@
 environment:
   run: python3 environment/training.py
   name: PongDeterministic-v4
-  shape: [42, 42, 1]                    # [height, width, {channels}] of env's input
+  shape: [84, 84, 1]                    # [height, width, channels] of env's input
   max_episodes: 100000
   infinite_run: False
 
@@ -21,7 +21,7 @@ algorithm:
   name: da3c
 
   input:
-    shape: [42, 42, 1]
+    shape: [84, 84, 1]
     history: 1
     use_convolutions: true
 
@@ -38,7 +38,7 @@ algorithm:
 
   entropy_beta: 0.01              # entropy regularization constant
   rewards_gamma: 0.99             # rewards discount factor
-  use_gae: True                   # switcher for generalized advantage estimation
+  use_gae: false                  # switcher for generalized advantage estimation
   gae_lambda: 1.00                # lambda for generalized advantage estimation
 
   initial_learning_rate: 1e-4

@@ -3,6 +3,7 @@ from builtins import range
 from builtins import object
 import numpy as np
 import scipy.signal
+from PIL import Image
 
 from relaax.server.common import session
 from relaax.common.algorithms.lib import episode
@@ -11,6 +12,7 @@ from relaax.common.algorithms.lib import utils
 from .. import da3c_config
 from .. import da3c_model
 from . import da3c_observation
+DEBUG = False
 
 
 class DA3CEpisode(object):
@@ -48,6 +50,7 @@ class DA3CEpisode(object):
         assert (state is None) == terminal
         self.observation.add_state(state)
 
+        self.terminal = terminal
         assert self.last_action is None
         assert self.last_value is None
 
@@ -55,6 +58,13 @@ class DA3CEpisode(object):
 
     def end(self):
         experience = self.episode.end()
+        if DEBUG:
+            states = experience['state']
+            for i in range(len(states)):
+                for j in range(da3c_config.config.input.history):
+                    string = "logs/img" + str(i) + str(j)
+                    Image.fromarray(np.asarray(
+                        states[i][:, :, j] * 255, dtype=np.uint8)).save(string, "PNG")
         if not self.exploit:
             self.apply_gradients(self.compute_gradients(experience), len(experience))
             if da3c_config.config.use_icm:
@@ -98,8 +108,18 @@ class DA3CEpisode(object):
 
     def get_action_and_value_from_network(self):
         if da3c_config.config.use_lstm:
-            action, value, self.lstm_state = self.session.op_get_action_value_and_lstm_state(
-                state=[self.observation.queue], lstm_state=self.lstm_state, lstm_step=[1])
+            if self.episode.experience is not None and (len(self.episode.experience) == da3c_config.config.batch_size or self.terminal):
+                action, value, _ = self.session.op_get_action_value_and_lstm_state(
+                    state=[self.observation.queue],
+                    lstm_state0=self.lstm_state[0],
+                    lstm_state1=self.lstm_state[1],
+                    lstm_step=[1])
+            else:
+                action, value, self.lstm_state = self.session.op_get_action_value_and_lstm_state(
+                    state=[self.observation.queue],
+                    lstm_state0=self.lstm_state[0],
+                    lstm_state1=self.lstm_state[1],
+                    lstm_step=[1])
         else:
             action, value = self.session.op_get_action_and_value(
                 state=[self.observation.queue])
@@ -109,9 +129,12 @@ class DA3CEpisode(object):
             probabilities, = action
             return utils.choose_action_descrete(probabilities), value
         mu, sigma2 = action
+        # print('mu', mu)
         # da3c_config.config.output.action_high
         # da3c_config.config.output.action_low
-        return utils.choose_action_continuous(mu, sigma2), value
+        return utils.choose_action_continuous(mu, sigma2,
+                                              da3c_config.config.output.action_high,
+                                              da3c_config.config.output.action_low), value
 
     def get_intrinsic_reward(self, state):
         self.icm_observation.add_state(state)
@@ -148,10 +171,13 @@ class DA3CEpisode(object):
                      value=experience['value'], discounted_reward=self.discounted_reward)
 
         if da3c_config.config.use_lstm:
-            feeds.update(dict(lstm_state=self.initial_lstm_state, lstm_step=[len(reward)]))
+            feeds.update(dict(lstm_state0=self.initial_lstm_state[0],
+                              lstm_state1=self.initial_lstm_state[1],
+                              lstm_step=[len(reward)]))
         if da3c_config.config.use_gae:
             feeds.update(dict(advantage=advantage))
 
+        # print('loss', self.session.op_compute_loss(**feeds))
         return self.session.op_compute_gradients(**feeds)
 
     def compute_icm_gradients(self, experience):

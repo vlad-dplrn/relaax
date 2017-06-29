@@ -57,9 +57,12 @@ class DA3CContinuousLoss(subgraph.Subgraph):
         x_power = tf.square(x_diff) * x_prec * -0.5
         gaussian_nll = (tf.reduce_sum(log_pi, axis=1)
                         + b_size * tf.log(2. * np.pi)) / 2. - tf.reduce_sum(x_power, axis=1)
-        policy_loss = (tf.multiply(gaussian_nll,
-                                   tf.stop_gradient(self.ph_discounted_reward.node - self.ph_value.node)) +
-                       entropy_beta * entropy)
+
+        policy_loss = -tf.reduce_sum(
+            tf.multiply(gaussian_nll,
+                        tf.stop_gradient(self.ph_discounted_reward.node - self.ph_value.node))
+            + entropy_beta * entropy
+        )
 
         # value loss (output)
         # (Learning rate for Critic is half of Actor's, it's l2 without dividing by 0.5)

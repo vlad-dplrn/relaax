@@ -1,4 +1,6 @@
 from __future__ import absolute_import
+import tensorflow as tf
+import numpy as np
 
 from relaax.common.algorithms import subgraph
 from relaax.common.algorithms.lib import graph
@@ -22,25 +24,51 @@ class Network(subgraph.Subgraph):
                                     [dict(type=layer.Dense, size=size,
                                           activation=layer.Activation.Relu) for size in sizes])
         head = dense
-        if da3c_config.config.use_lstm:
-            lstm = layer.LSTM(graph.Expand(dense, 0), size=sizes[-1])
-            head = graph.Reshape(lstm, [-1, sizes[-1]])
         layers = [input, dense]
+
+        if da3c_config.config.use_lstm:
+            lstm_step_size = tf.placeholder(tf.float32, [1], name='lstm_step_size')
+            ph_lstm_state0 = tf.placeholder(tf.float32, [1, sizes[-1]], name='lstm_state0')
+            ph_lstm_state1 = tf.placeholder(tf.float32, [1, sizes[-1]], name='lstm_state1')
+
+            lstm_initial_state = tf.contrib.rnn.LSTMStateTuple(
+                ph_lstm_state0,
+                ph_lstm_state1
+            )
+            lstm_zero_state = tf.contrib.rnn.LSTMStateTuple(
+                np.zeros([1, sizes[-1]]), np.zeros([1, sizes[-1]])
+            )
+
+            lstm = tf.contrib.rnn.BasicLSTMCell(sizes[-1], state_is_tuple=True)
+
+            with tf.variable_scope('LSTM') as scope:
+                lstm_outputs, lstm_state = \
+                    tf.nn.dynamic_rnn(lstm, graph.Expand(dense, 0).node,
+                                      initial_state=lstm_initial_state,
+                                      sequence_length=lstm_step_size,
+                                      time_major=False, scope=scope)
+                scope.reuse_variables()
+                lstm_weights = graph.Variables(
+                    graph.TfNode(tf.get_variable('basic_lstm_cell/weights')),
+                    graph.TfNode(tf.get_variable('basic_lstm_cell/biases')))
+
+            layers.append(layer.WeightLayer(lstm_weights))  # layers.append(lstm)
+            head = graph.Reshape(graph.TfNode(lstm_outputs), [-1, sizes[-1]])
+
+            # self.ph_lstm_state = graph.TfNode(lstm_initial_state)  # lstm.ph_state
+            self.ph_lstm_state0 = graph.TfNode(ph_lstm_state0)
+            self.ph_lstm_state1 = graph.TfNode(ph_lstm_state1)
+            self.ph_lstm_step = graph.TfNode(lstm_step_size)  # lstm.ph_step
+            self.lstm_zero_state = lstm_zero_state  # lstm.zero_state
+            self.lstm_state = graph.TfNode(lstm_state)  # lstm.state
 
         actor = layer.Actor(head, da3c_config.config.output)
         critic = layer.Dense(head, 1)
+        layers.extend((actor, critic))
 
         self.ph_state = input.ph_state
-        if da3c_config.config.use_lstm:
-            layers.append(lstm)
-            self.ph_lstm_state = lstm.ph_state
-            self.ph_lstm_step = lstm.ph_step
-            self.lstm_zero_state = lstm.zero_state
-            self.lstm_state = lstm.state
         self.actor = actor
         self.critic = graph.Flatten(critic)
-
-        layers.extend((actor, critic))
         self.weights = layer.Weights(*layers)
 
 
@@ -122,11 +150,14 @@ class AgentModel(subgraph.Subgraph):
             feeds.update(dict(advantage=sg_loss.ph_advantage))
 
         if da3c_config.config.use_lstm:
-            feeds.update(dict(lstm_state=sg_network.ph_lstm_state, lstm_step=sg_network.ph_lstm_step))
+            feeds.update(dict(lstm_state0=sg_network.ph_lstm_state0,
+                              lstm_state1=sg_network.ph_lstm_state1,
+                              lstm_step=sg_network.ph_lstm_step))
             self.lstm_zero_state = sg_network.lstm_zero_state
             self.op_get_action_value_and_lstm_state = self.Ops(sg_network.actor, sg_network.critic,
                                                                sg_network.lstm_state, state=sg_network.ph_state,
-                                                               lstm_state=sg_network.ph_lstm_state,
+                                                               lstm_state0=sg_network.ph_lstm_state0,
+                                                               lstm_state1=sg_network.ph_lstm_state1,
                                                                lstm_step=sg_network.ph_lstm_step)
         else:
             self.op_get_action_and_value = self.Ops(sg_network.actor, sg_network.critic,
