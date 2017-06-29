@@ -27,6 +27,8 @@ class Agent(object):
 
         if len(self.episode.experience) == da3c_config.config.batch_size or terminal:
             self.episode.end()
+            if terminal:
+                self.reset()
             self.episode.begin()
 
         return self.episode.last_action
